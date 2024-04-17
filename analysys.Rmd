@@ -1,0 +1,285 @@
+---
+title: "analisis"
+author: "s"
+date: "2024-04-03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+table1= read.csv("~/Downloads/data(36).txt", sep = "\t") 
+table2= read.csv("~/Downloads/data(35).txt", sep = "\t")
+table3= read.csv("~/Downloads/data(34).txt", sep = "\t")
+table4= read.csv("~/Downloads/data(33).txt", sep = "\t")
+
+```
+
+```{r}
+num_rows1 = nrow(table1)
+num_rows2 = nrow(table2)
+num_rows3 = nrow(table3)
+num_rows4 = nrow(table4)
+
+cat("The table 1 has", num_rows1, "rows.\n")
+cat("The table 2 has", num_rows2, "rows.\n")
+cat("The table 3 has", num_rows3, "rows.\n")
+cat("The table 4 has", num_rows4, "rows.\n")
+
+```
+
+```{r}
+last_rows1 = tail(table1, 3000000)
+last_rows2 = tail(table2, 3000000)
+last_rows3 = tail(table3, 3000000)
+last_rows4 = tail(table4, 3000000)
+
+```
+
+```{r}
+num_rows_last_1 = nrow(last_rows1)
+num_rows_last_2 = nrow(last_rows2)
+num_rows_last_3 = nrow(last_rows3)
+num_rows_last_4 = nrow(last_rows4)
+
+cat("The table 1 has", num_rows_last_1, "rows.\n")
+cat("The table 2 has", num_rows_last_2, "rows.\n")
+cat("The table 3 has", num_rows_last_3, "rows.\n")
+cat("The table 4 has", num_rows_last_4, "rows.\n")
+
+```
+
+```{r}
+head(last_rows1)
+tail(last_rows1)
+tail(last_rows2)
+tail(last_rows3)
+tail(last_rows4)
+
+```
+
+```{r}
+summary(last_rows1$angle)
+summary(last_rows2$angle)
+summary(last_rows3$angle)
+summary(last_rows4$angle)
+```
+
+```{r}
+# Join the four data frames by rows
+all_last_rows <- rbind(last_rows1, last_rows2, last_rows3, last_rows4)
+
+```
+
+```{r}
+head(all_last_rows)
+tail(all_last_rows)
+```
+
+```{r}
+all_last_rows$x=round(all_last_rows$x)
+all_last_rows$y=round(all_last_rows$y)
+all_last_rows$angle=round(all_last_rows$angle,1)
+all_last_rows$length=round(all_last_rows$length,8)
+
+all_rounded=all_last_rows
+
+all_rounded
+summary(all_rounded$angle)
+```
+
+```{r}
+
+
+# Subset the data frame
+all_rounded <- subset(all_rounded, x >= 25 & x <=  37 & y >= 170 & y <= 180)
+
+hist(all_rounded$angle, xlab = "Radians", main = "Histogram")
+ 
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{r}
+# Subset the data frame
+all_rounded <- subset(all_rounded, x >= -49 & x <= 49 & y >= 140 & y <= 199)
+```
+
+```{r}
+# Calculate the average Horizontality at each (x, y) point
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+All_Avg_Angle <- all_rounded %>%
+    group_by(x, y) %>%
+    summarise(avg_angle = mode(angle))
+
+
+
+
+#All_Avg_Angle$avg_angle=round(All_Avg_Angle$avg_angle,2)
+tail(All_Avg_Angle)
+summary(All_Avg_Angle$avg_angle)
+
+nrow(All_Avg_Angle)
+
+
+
+
+```
+
+```{r}
+# Define the neighborhood size
+neighborhood_size <- 1
+
+# Initialize a vector to store the correlation values
+correlation <- numeric(nrow(All_Avg_Angle))
+
+# For each point...
+for (i in 1:nrow(All_Avg_Angle)) { 
+  # Find the neighbors
+  neighbors <- which(abs(All_Avg_Angle$x - All_Avg_Angle$x[i]) <= neighborhood_size & 
+                     abs(All_Avg_Angle$y - All_Avg_Angle$y[i]) <= neighborhood_size)
+  
+  # Exclude the i-th location from the neighbors
+  neighbors <- neighbors[neighbors != i]
+  
+  # If there are no neighbors, set correlation to NA
+  if (length(neighbors) == 0) {
+    correlation[i] <- NA
+  } else {
+    # Calculate the correlation of the angles
+    correlation[i] <- cor(All_Avg_Angle$avg_angle[i], All_Avg_Angle$avg_angle[neighbors])
+  }
+}
+
+# Add the correlation values to the data frame
+All_Avg_Angle$correlation <- correlation
+```
+
+```{r}
+
+# Calculate the RGB values for All_Avg_Angle
+All_Avg_Angle$color <- with(All_Avg_Angle, rgb((sin(2*pi*avg_angle)+1)/2, (cos(2*pi*avg_angle)+1)/2, (-sin(2*pi*avg_angle)+1)/2))
+
+```
+
+```{r}
+
+
+All_heatmap_plot <- ggplot(All_Avg_Angle, aes(x = x, y = y, fill = color)) +
+    geom_tile() +
+    scale_fill_identity() +
+    theme_minimal() +
+    labs(fill = "Color", x = "X coordinate [µm]", y = "Y coordinate [µm]", title = "Heatmap of average orientation angle at each (x, y) point in the chamber")   
+
+
+# Print the plot
+
+print(All_heatmap_plot) 
+
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+
+
+library(ggplot2)
+
+# Create a data frame with angles from 0 to 2*pi
+df <- data.frame(angle = seq(0, 2*pi, length.out = 1000))
+
+# Calculate the x and y coordinates of the points on the circle
+df$y <- cos(df$angle)
+df$x <- -sin(df$angle)
+
+# Calculate the RGB color for each point based on the angle
+df$color <- with(df, rgb((sin(2*angle)+1)/2, (cos(2*angle)+1)/2, (-sin(2*angle)+1)/2))
+
+# Plot the circle with bigger points
+ggplot(df, aes(x = x, y = y, color = I(color))) +
+    geom_point(size = 7) +  # Increase the size of the points
+    coord_fixed() +
+    theme_void() +
+    theme(legend.position = "none")
+```
+
+```{r}
+# Define the length of the line segments
+length <- 0.5
+
+#calculate the start points of the line segments
+
+All_Avg_Angle$start_y <- All_Avg_Angle$y + length * -cos(All_Avg_Angle$avg_angle * pi )
+All_Avg_Angle$start_x <- All_Avg_Angle$x + length * sin(All_Avg_Angle$avg_angle * pi )
+
+
+
+# Calculate the end points of the line segments
+All_Avg_Angle$end_y <- All_Avg_Angle$y + length * cos(All_Avg_Angle$avg_angle * pi )
+All_Avg_Angle$end_x <- All_Avg_Angle$x + length * -sin(All_Avg_Angle$avg_angle * pi )
+
+
+
+# Create the plot
+# Create the plot
+All_Avg_Angle_plot <- ggplot(All_Avg_Angle,
+aes(x = start_x, y = start_y)) +  # Use start_x and start_y for the x and y aesthetics
+    geom_segment(aes(xend = end_x, yend = end_y), color = "black") +
+    theme_minimal() +
+    labs(x = "X coordinate [µm]", y = "Y coordinate[mµ]", title = "Mode orientation angle at each (x, y) point in the chamber")
+
+# Print the plot
+print(All_Avg_Angle_plot)
+
+All_Avg_Angle
+```
+
+```{r}
+Lengths=sample(all_rounded$length, 5000)
+
+
+
+hist(all_rounded$length, main="Histogram of Lengths", xlab = "Length [µm]")
+hist(Lengths)
+shapiro.test(Lengths)
+mean(all_rounded$length)
+
+?shapiro.test()
+
+qqnorm(all_rounded$length)
+```
+
+```{r}
+s=runif(1000000)
+L=6+(s-0.5)*2.5
+hist(s,50)
+hist(L,50)
+mean(L)
+range(L)
+```
+
+```{r}
+install.packages("car")
+```
+
+```{r}
+library(car)
+Lengths=sample(all_rounded$length, 5000, replace = F)
+
+qqPlot(Lengths, cex=0.3)
+qqPlot(rnorm(10000,3.4,2))
+```

@@ -1,0 +1,146 @@
+---
+title: "Untitled"
+author: "s"
+date: "2024-04-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+Data= read.csv("~/Downloads/data(59).txt", sep = "\t")
+```
+
+```{r}
+head(Data)
+```
+
+```{r}
+important=data.frame(round(Data$x), round(Data$y), Data$angle-0.45752*pi)
+names(important)=c("X_coordinate", "Y_coordinate", "Angle")
+head(important)
+
+library(dplyr)
+
+important2 <- important %>%
+    filter(X_coordinate > -50 & X_coordinate < 50)%>%
+    filter(Y_coordinate > 140 & Y_coordinate < 199)
+head(important2) 
+
+```
+
+```{r}
+important2$unit_vector_x=sin(important2$Angle*pi)
+important2$unit_vector_y=cos(important2$Angle*pi)
+head(important2)
+```
+
+##Calculate the tensor $\mathbf{Q}$ for the cell using the formula: $Q_{\alpha \beta} = \frac{1}{N} \sum_{i=1}^N (2v_{i,\alpha} v_{i,\beta} - \delta_{\alpha \beta})$ where $N$ is the number of molecules in the cell, $v_{i,\alpha}$ and $v_{i,\beta}$ are the components of $\vec{v}_i$, and $\delta_{\alpha \beta}$ is the Kronecker delta.
+
+```{r}
+library(dplyr)
+
+TensorQ <- important2 %>%
+    group_by(X_coordinate, Y_coordinate) %>%
+    summarise(
+        Q11 = mean(2*unit_vector_x*unit_vector_x - 1),
+        Q12 =  mean(2*unit_vector_x*unit_vector_y),
+        Q21 =  mean(2*unit_vector_y*unit_vector_x),
+        Q22 = mean(2*unit_vector_y*unit_vector_y) - 1
+    )
+
+head(TensorQ)
+tail(TensorQ)
+range(TensorQ$Q11)
+range(TensorQ$Q12)
+range(TensorQ$Q21)
+range(TensorQ$Q22)
+hist(TensorQ$Q11)
+hist(TensorQ$Q22)
+```
+
+```{r}
+library(pracma)
+
+find_eigens <- function(Q11, Q12, Q21, Q22) {
+  Q_matrix <- matrix(c(Q11, Q12, Q21, Q22), nrow = 2)
+  eigens <- eigen(Q_matrix)
+  return(list(values = eigens$values, vectors = eigens$vectors))
+}
+
+table_with_eigens <- TensorQ %>%
+  mutate(eigens = sapply(1:n(), function(i) find_eigens(Q11[i], 
+  Q12[i], Q21[i], Q22[i]), simplify = FALSE))
+
+head(table_with_eigens)
+tail(table_with_eigens)
+```
+
+```{r}
+table_final <- table_with_eigens %>%
+  mutate(
+    eigenvalue_1 = sapply(eigens, function(x) x$values[1]),
+    eigenvalue_2 = sapply(eigens, function(x) x$values[2]),
+    director_x = sapply(eigens, function(x) x$vectors[1, which.max(x$values)]),
+    director_y = sapply(eigens, function(x) x$vectors[2, which.max(x$values)]),
+    order_parameter = pmax(eigenvalue_1, eigenvalue_2)
+  ) %>%
+  select(-eigens)
+
+head(table_final)
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(table_final, aes(x = X_coordinate, y = Y_coordinate, fill = order_parameter)) +
+    geom_tile() +
+    scale_fill_gradient(low = "white", high = "black") +
+    theme_minimal() +
+    labs(x = "X Coordinate", y = "Y Coordinate", fill = "Order Parameter") +
+    theme(legend.position = "none")
+```
+
+```{r}
+write.csv(table_final, "table_final(3).csv")
+```
+
+```{r}
+
+Tensor1=read.csv("/home/ricardo/box2d_for_bacteria/table_final(1).csv")
+Tensor2=read.csv("/home/ricardo/box2d_for_bacteria/table_final(2).csv")
+Tensor3=read.csv("/home/ricardo/box2d_for_bacteria/table_final(3).csv")
+Tensor1=data.frame(Tensor1$X_coordinate, Tensor1$Y_coordinate, Tensor1$order_parameter)
+Tensor2=data.frame(Tensor2$X_coordinate, Tensor2$Y_coordinate, Tensor2$order_parameter)
+Tensor3=data.frame(Tensor3$X_coordinate, Tensor3$Y_coordinate, Tensor3$order_parameter)
+head(Tensor1)
+
+```
+
+```{r}
+# Rename the columns in Angle1 and Tensor1 to match
+names(Tensor1) <- c("X", "Y", "order_parameter")
+names(Tensor2) <- c("X", "Y", "order_parameter")
+names(Tensor3) <- c("X", "Y", "order_parameter")
+
+
+Tensor1$order_parameter <- as.numeric(round(Tensor1$order_parameter, 9))
+Tensor2$order_parameter <- as.numeric(round(Tensor2$order_parameter, 9))
+Tensor3$order_parameter <- as.numeric(round(Tensor3$order_parameter, 9))
+
+
+# Merge the two data frames by X and Y
+merged <- merge(Tensor1, Tensor2, by = c("X", "Y"))
+merged <- merge(merged, Tensor3, by = c("X", "Y"))
+
+# Add a new column to the merged data frame that indicates whether modulus and order_parameter are equal
+merged$equal <- (merged$order_parameter.x == merged$order_parameter.y) & (merged$order_parameter.y == merged$order_parameter)
+
+# Print the merged data frame
+
+head(merged)
+sum(merged$equal)/nrow(merged)
+```

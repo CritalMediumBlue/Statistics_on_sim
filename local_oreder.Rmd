@@ -1,0 +1,296 @@
+---
+title: "local_order"
+author: "s"
+date: "2024-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+tableT1= read.csv("~/Downloads/data(59).txt", sep = "\t")
+tableT2= read.csv("~/Downloads/data(60).txt", sep = "\t")
+tableT3= read.csv("~/Downloads/data(61).txt", sep = "\t")
+tableT4= read.csv("~/Downloads/data(62).txt", sep = "\t")
+tableT5= read.csv("~/Downloads/data(63).txt", sep = "\t")
+```
+
+```{r}
+num_rowsT1 = nrow(tableT1)
+num_rowsT2 = nrow(tableT2)
+num_rowsT3 = nrow(tableT3)
+num_rowsT4 = nrow(tableT4)
+num_rowsT5 = nrow(tableT5)
+
+cat("The table T 1 has", num_rowsT1, "rows.\n")
+cat("The table T 2 has", num_rowsT2, "rows.\n")
+cat("The table T 3 has", num_rowsT3, "rows.\n")
+cat("The table T 4 has", num_rowsT4, "rows.\n")
+cat("The table T 5 has", num_rowsT5, "rows.\n")
+```
+
+```{r}
+All <- rbind(tableT1, tableT2, tableT3, tableT4, tableT5)
+nrow(All)
+
+head(All)
+tail(All)
+```
+
+```{r}
+All <- subset(All, x<49 && x>-49 && y<199 && y >140 )
+```
+
+```{r}
+All_easy <- data.frame(round(All$x/10),round(All$y/10),round(All$angle,10))
+
+
+names(All_easy)<-c("X","Y","Angle")
+
+tail(All_easy)
+range(All_easy$Angle)
+hist(All_easy$Angle)
+range(All_easy$X)
+range(All_easy$Y)
+```
+
+```{r}
+All_easy$Complex_Angle <- sapply(All_easy$Angle, function(x) exp(1i * x * 2 * pi))
+tail(All_easy)
+head(All_easy)
+
+
+
+```
+
+```{r}
+Complex_data_frame<-data.frame(All_easy$X,All_easy$Y,All_easy$Angle,All_easy$Complex_Angle)
+
+names(Complex_data_frame)<-c("X","Y","Angle","Complex")
+tail(Complex_data_frame)
+head(Complex_data_frame)
+range(Complex_data_frame$Angle)
+
+```
+
+```{r}
+library(dplyr)
+
+all_last_rows <- subset(Complex_data_frame)
+
+All_Avg_Angle <- all_last_rows %>%
+  group_by(X, Y) %>%
+  summarise(avg_angle = mean(Complex))
+
+
+
+
+tail(All_Avg_Angle)
+
+
+```
+
+```{r}
+All_Avg_Angle$avg_angle <- sapply(All_Avg_Angle$avg_angle, Arg)
+
+# Print the first few rows to check the transformation
+All_Avg_Angle$avg_angle <- All_Avg_Angle$avg_angle/pi
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+
+```
+
+```{r}
+length(All_Avg_Angle$avg_angle)
+
+for (i in 1:length(All_Avg_Angle$avg_angle)) {
+  Angle <- All_Avg_Angle$avg_angle[i]
+  if (Angle<=0){
+    All_Avg_Angle$avg_angle[i]<- 1+Angle
+  }
+}
+head(All_Avg_Angle)
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+library(ggplot2)
+
+All_Avg_Angle$color <- with(All_Avg_Angle, rgb((sin(2*pi*avg_angle)+1)/2, (cos(2*pi*avg_angle)+1)/2, (-sin(2*pi*avg_angle)+1)/2))
+All_Avg_Angle
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+All_heatmap_plot <- ggplot(All_Avg_Angle, aes(x = X*10, y = Y*10, fill = color)) +
+    geom_tile() +
+    scale_fill_identity() +
+    theme_minimal() +
+    labs(fill = "Color", x = "X coordinate [µm]", y = "Y coordinate [µm]", title = "Local Directors in the chamber")   
+
+
+# Print the plot 
+
+print(All_heatmap_plot) 
+```
+
+```{r}
+tail(All_Avg_Angle)
+tail(All_easy)
+
+```
+
+```{r}
+joined_data <- inner_join(All_Avg_Angle, All_easy, by = c("X" = "X", "Y" = "Y"))
+joined_data$Angle_Diff <- abs(joined_data$avg_angle - joined_data$Angle)
+head(joined_data)
+```
+
+```{r}
+result <- joined_data %>%
+      group_by(X, Y) %>%
+      summarize(Av_difference = 2*mean(cos(Angle_Diff)**2)-1)
+result
+```
+
+```{r}
+
+range(result$order)
+library(ggplot2)
+
+# Create a heatmap of the average difference
+ggplot(result, aes(x = X*10, y = Y*10, fill = Av_difference)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", limits = c(0, 1)) +
+  theme_minimal() + 
+  labs(x = "X", y = "Y", fill = "Order parameter") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+```
+
+```{r}
+
+calculate_circular_difference <- function(director_angle, angles) {
+  mean(circular::circ.dist(angles, director_angle))
+}
+
+# Solution
+result_df <- All_Avg_Angle %>%
+  left_join(All_easy, by = c("X", "Y")) %>%  
+  group_by(X, Y) %>%                   
+  mutate(Av_difference = calculate_circular_difference(avg_angle, Angle)) %>% 
+ 
+
+```
+
+```{r}
+
+# Load the dplyr package
+library(dplyr)
+
+# Join the two data frames based on 'X' and 'Y'
+merged_data <- left_join(All_easy, All_Avg_Angle, by = c("X", "Y"))
+
+# Group by 'X' and 'Y' and calculate the mean difference
+All_Avg_Angle <- merged_data %>%
+  group_by(X, Y) %>%
+  mutate(order = 2*mean(cos(Angle - avg_angle)**2)-1)
+
+tail(All_Avg_Angle)
+```
+
+```{r}
+
+range(All_Avg_Angle$order)
+library(ggplot2)
+
+# Create a heatmap of the average difference
+ggplot(All_Avg_Angle, aes(x = X, y = Y, fill = order)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", limits = c(0, 1)) +
+  theme_minimal() +
+  labs(x = "X", y = "Y", fill = "Average Difference") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r}
+# Load the dplyr package
+library(dplyr)
+
+# Merge the two data frames based on matching 'X' and 'Y'
+merged_data <- merge(All_easy, All_Avg_Angle, by = c("X", "Y"))
+
+# Calculate the difference between 'avg_angle' and 'Angle'
+merged_data$angle_diff <- abs(merged_data$avg_angle - merged_data$Angle)
+
+# Group by 'X' and 'Y' and calculate the average difference
+average_diff <- merged_data %>% group_by(X, Y) %>% summarise(order_parameter = 2*mean(cos(angle_diff)**2)-1)
+```
+
+```{r}
+
+# Print the average difference
+head(average_diff)
+
+range(average_diff$order_parameter)
+```
+
+```{r}
+# Load the ggplot2 package
+library(ggplot2)
+
+# Create a heatmap of the average difference
+ggplot(average_diff, aes(x = X, y = Y, fill = order_parameter)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", limits = c(0, 1)) +
+  theme_minimal() +
+  labs(x = "X", y = "Y", fill = "Average Difference") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r}
+
+angle=rnorm(100000, 0.5, 0.1)
+hist(angle)
+
+```
+
+```{r}
+
+# Generate random values for theta
+Theta <- runif(100, 1/4, 3/4)
+
+# Create complex numbers
+Complex <- exp(1i * 2 * Theta * pi)
+
+# Extract the real and imaginary parts
+RealPart <- Re(Complex)
+ImagPart <- Im(Complex)
+
+# Basic plot with base R
+plot(RealPart, ImagPart, xlim=c(-1,1), ylim=c(-1,1), xlab="Real", ylab="Imaginary",
+     pch=19, main="Vectors on the Unit Circle")
+abline(h=0, v=0, col="gray")  # Adds horizontal and vertical lines through origin
+grid(nx = NULL, ny = NULL)  # Adds grid lines for better readability
+
+# If you prefer a ggplot visualization
+df <- data.frame(x = RealPart, y = ImagPart)
+
+ggplot(df, aes(x, y)) +
+    geom_point() +
+    coord_fixed() +
+    xlab("Real") + 
+    ylab("Imaginary") +
+    ggtitle("Vectors on the Unit Circle") +
+    theme_minimal() +
+    geom_hline(yintercept = 0, linetype="dashed", color = "grey") +
+    geom_vline(xintercept = 0, linetype="dashed", color = "grey") +
+    theme(panel.grid.major = element_line(color = "grey", linetype = "dashed"))
+
+
+```

@@ -1,0 +1,111 @@
+---
+title: "Improved_complex"
+author: "s"
+date: "2024-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+```{r}
+tableT1= read.csv("~/Downloads/data(59).txt", sep = "\t")
+tableT2= read.csv("~/Downloads/data(60).txt", sep = "\t")
+tableT3= read.csv("~/Downloads/data(61).txt", sep = "\t")
+tableT4= read.csv("~/Downloads/data(62).txt", sep = "\t")
+#tableT5= read.csv("~/Downloads/data(63).txt", sep = "\t")
+```
+
+```{r}
+nrow(tableT1)
+nrow(tableT2)
+nrow(tableT3)
+nrow(tableT4)
+#nrow(tableT5)
+```
+
+```{r}
+All <- rbind(tableT1, tableT2, tableT3)
+nrow(All)
+
+head(All)
+tail(All)
+```
+
+```{r}
+All_easy <- data.frame(round(All$x),round(All$y),round(All$angle,5))
+
+tail(All_easy)
+
+names(All_easy)<-c("X","Y","Angle")
+tail(All_easy)
+
+```
+
+```{r}
+All_easy$Complex_Angle <- sapply(All_easy$Angle, function(x) exp(1i * x * 2 * pi))
+tail(All_easy)
+```
+
+```{r}
+Complex_data_frame<-data.frame(All_easy$X,All_easy$Y,All_easy$Angle,All_easy$Complex_Angle)
+names(Complex_data_frame)<-c("X","Y","Angle","Complex")
+tail(Complex_data_frame)
+
+```
+
+```{r}
+
+director=Arg(mean(Complex_data_frame$Complex))/2 ## We average the complex numbers and turn the average into an angle
+director # This is the director angle to calculate the order parameter
+```
+
+```{r}
+
+
+Complex_data_frame$theta <- Complex_data_frame$Angle - director # Calculate the angle relative to the director
+
+Complex_data_frame$Legendre_polynomial<-(3*(cos(Complex_data_frame$theta))**2-1)/2 # Calculate the Legendre polynomial
+
+```
+
+```{r}
+mean(Complex_data_frame$Legendre_polynomial) # This is the order parameter. The average of the second Legendre polynomial
+
+```
+
+```{r}
+
+# Define the number of sub-regions in the x and y directions
+num_sub_regions_x <- 10  # Change this to the desired value
+num_sub_regions_y <- 10  # Change this to the desired value
+
+# Calculate the width and height of the sub-regions
+sub_region_width <- (max(All_easy$X) - min(All_easy$X)) / num_sub_regions_x
+sub_region_height <- (max(All_easy$Y) - min(All_easy$Y)) / num_sub_regions_y
+
+# Assign each data point to a sub-region
+All_easy$sub_region_x <- floor((All_easy$X - min(All_easy$X)) / sub_region_width) + 1
+All_easy$sub_region_y <- floor((All_easy$Y - min(All_easy$Y)) / sub_region_height) + 1
+
+# Group the data by the sub-regions
+All_easy_grouped <- All_easy %>% 
+    group_by(sub_region_x, sub_region_y) %>%
+    summarise(mean_angle = mean(Angle, na.rm = TRUE))
+# Calculate the order parameter for each group
+order_parameters <- All_easy_grouped %>% summarise(
+    Complex_Angle = mean(sapply(mean_angle, function(x) exp(1i * x * 2 * pi))),
+    director = Arg(mean(Complex_Angle))/2,
+    theta = mean_angle - director,
+    Legendre_polynomial = (3*(cos(theta))**2-1)/2,
+    order_parameter = mean(Legendre_polynomial)
+)
+
+
+# Print the order parameters
+print(order_parameters)
+
+```

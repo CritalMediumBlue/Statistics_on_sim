@@ -1,0 +1,151 @@
+---
+title: "Improved_complex"
+author: "s"
+date: "2024-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+```{r}
+tableT1= read.csv("~/Downloads/data(44).txt", sep = "\t")
+tableT2= read.csv("~/Downloads/data(45).txt", sep = "\t")
+tableT3= read.csv("~/Downloads/data(46).txt", sep = "\t")
+tableT4= read.csv("~/Downloads/data(47).txt", sep = "\t")
+tableT5= read.csv("~/Downloads/data(48).txt", sep = "\t")
+tableT6= read.csv("~/Downloads/data(49).txt", sep = "\t")
+```
+
+```{r}
+num_rowsT1 = nrow(tableT1)
+num_rowsT2 = nrow(tableT2)
+num_rowsT3 = nrow(tableT3)
+num_rowsT4 = nrow(tableT4)
+num_rowsT5 = nrow(tableT5)
+num_rowsT6 = nrow(tableT6)
+
+cat("The table T 1 has", num_rowsT1, "rows.\n")
+cat("The table T 2 has", num_rowsT2, "rows.\n")
+cat("The table T 3 has", num_rowsT3, "rows.\n")
+cat("The table T 4 has", num_rowsT4, "rows.\n")
+cat("The table T 5 has", num_rowsT5, "rows.\n")
+cat("The table T 6 has", num_rowsT6, "rows.\n")
+```
+
+```{r}
+All <- rbind(tableT1, tableT2, tableT3, tableT4, tableT5, tableT6)
+head(All)
+tail(All)
+```
+
+```{r}
+num_all_last_rows = nrow(All)
+cat("The table 1 has", num_all_last_rows, "rows.\n")
+
+head(All)
+tail(All)
+```
+
+```{r}
+All_easy <- data.frame(round(All$x),round(All$y),round(All$angle,10))
+
+names(All_easy)<-c("X","Y","Angle")
+
+tail(All_easy)
+head(All_easy)
+range(All_easy$Angle)
+hist(All_easy$Angle)
+```
+
+
+
+```{r}
+All_easy$Complex_Angle <- sapply(All_easy$Angle, function(x) exp(1i * x * 2 * pi))
+tail(All_easy)
+head(All_easy)
+
+
+
+```
+
+```{r}
+Complex_data_frame<-data.frame(All_easy$X,All_easy$Y,All_easy$Angle,All_easy$Complex_Angle)
+
+names(Complex_data_frame)<-c("X","Y","Angle","Complex")
+tail(Complex_data_frame)
+head(Complex_data_frame)
+range(Complex_data_frame$Angle)
+
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+all_last_rows <- subset(Complex_data_frame)
+
+
+
+All_Avg_Angle <- all_last_rows %>%
+  group_by(X, Y) %>%
+  summarise(avg_angle = mean(Complex))
+
+
+
+
+tail(All_Avg_Angle)
+```
+
+```{r}
+All_Avg_Angle$avg_angle <- sapply(All_Avg_Angle$avg_angle, Arg)
+
+# Print the first few rows to check the transformation
+All_Avg_Angle$avg_angle <- All_Avg_Angle$avg_angle/pi
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+
+```
+
+```{r}
+```
+
+```{r}
+
+length(All_Avg_Angle$avg_angle)
+
+for (i in 1:length(All_Avg_Angle$avg_angle)) {
+  Angle <- All_Avg_Angle$avg_angle[i]
+  if (Angle<=0){
+    All_Avg_Angle$avg_angle[i]<- 1+Angle
+  }
+}
+head(All_Avg_Angle)
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+library(ggplot2)
+
+All_Avg_Angle$color <- with(All_Avg_Angle, rgb((sin(2*pi*avg_angle)+1)/2, (cos(2*pi*avg_angle)+1)/2, (-sin(2*pi*avg_angle)+1)/2))
+All_Avg_Angle
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+All_heatmap_plot <- ggplot(All_Avg_Angle, aes(x = X, y = Y, fill = color)) +
+    geom_tile() +
+    scale_fill_identity() +
+    theme_minimal() +
+    labs(fill = "Color", x = "X coordinate [µm]", y = "Y coordinate [µm]", title = "Heatmap of average orientation angle at each (x, y) point in the chamber")   
+
+
+# Print the plot
+
+print(All_heatmap_plot) 
+```

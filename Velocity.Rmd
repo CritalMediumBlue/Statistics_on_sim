@@ -1,0 +1,109 @@
+---
+title: "Improved_complex"
+author: "s"
+date: "2024-04-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+```{r}
+#tableT1= read.csv("~/Downloads/data(59).txt", sep = "\t")
+tableT2= read.csv("~/Downloads/data(60).txt", sep = "\t")
+tableT3= read.csv("~/Downloads/data(61).txt", sep = "\t")
+#tableT4= read.csv("~/Downloads/data(62).txt", sep = "\t")
+#tableT5= read.csv("~/Downloads/data(63).txt", sep = "\t")
+```
+
+```{r}
+#nrow(tableT1)
+nrow(tableT2)
+nrow(tableT3)
+#nrow(tableT4)
+#nrow(tableT5)
+```
+
+```{r}
+All <- rbind( tableT2, tableT3)
+nrow(All)
+
+head(All)
+tail(All)
+```
+
+```{r}
+
+
+head(All)
+```
+
+```{r}
+All$dx <- All$x - All$ox
+All$dy <- All$y - All$oy
+
+
+```
+
+```{r}
+tail(All)
+```
+
+```{r}
+All$x1 <- round(All$x, 0)
+All$y1 <- round(All$y, 0)
+tail(All)
+```
+
+```{r}
+library(dplyr)
+library(purrr)
+
+All_grouped <- All %>%
+  group_by(x1, y1) %>%
+  summarise(Average_X = mean(dx),
+            Average_Y = mean(dy))
+
+head(All_grouped)
+```
+
+```{r}
+
+All_grouped$length <- sqrt(All_grouped$Average_X^2 + All_grouped$Average_Y^2)
+head(All_grouped)
+```
+
+```{r}
+All_grouped <- filter(All_grouped, x1 %% 7 == 0, y1 %% 7 == 0)
+head(All_grouped)
+
+```
+
+```{r}
+
+# Define the scaling factor
+scaling_factor <- 4 # Change this to the desired value
+
+# Calculate the start points of the line segments
+All_grouped$start_y <- All_grouped$y1 - scaling_factor * All_grouped$Average_Y
+All_grouped$start_x <- All_grouped$x1 - scaling_factor * All_grouped$Average_X
+
+# Calculate the end points of the line segments
+All_grouped$end_y <- All_grouped$y1 + scaling_factor * All_grouped$Average_Y
+All_grouped$end_x <- All_grouped$x1 + scaling_factor * All_grouped$Average_X
+
+# Create the plot
+All_grouped_plot <- ggplot(All_grouped,
+aes(x = start_x, y = start_y)) +  # Use start_x and start_y for the x and y aesthetics
+    geom_segment(aes(xend = end_x, yend = end_y), color = "black", 
+                 arrow = arrow(length = unit(0.012, "npc"))) +
+    theme_minimal() +
+    labs(x = "X coordinate [µm]", y = "Y coordinate[mµ]", title = "Average velocity")
+
+# Print the plot
+print(All_grouped_plot)
+
+```

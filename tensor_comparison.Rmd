@@ -1,0 +1,142 @@
+---
+title: "Untitled"
+author: "s"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+tableT1= read.csv("~/Downloads/data(59).txt", sep = "\t")
+
+```
+
+```{r}
+All <- rbind(tableT1)
+head(All)
+```
+
+```{r}
+All_easy <- data.frame(round(All$x),round(All$y),round(All$angle,10))
+
+names(All_easy)<-c("X","Y","Angle")
+
+tail(All_easy)
+head(All_easy)
+range(All_easy$Angle)
+hist(All_easy$Angle)
+```
+
+```{r}
+All_easy$Complex_Angle <- sapply(All_easy$Angle, function(x) exp(1i * x * 2 * pi))
+tail(All_easy)
+head(All_easy)
+
+```
+
+```{r}
+Complex_data_frame<-data.frame(All_easy$X,All_easy$Y,All_easy$Angle,All_easy$Complex_Angle)
+
+names(Complex_data_frame)<-c("X","Y","Angle","Complex")
+tail(Complex_data_frame)
+head(Complex_data_frame)
+range(Complex_data_frame$Angle)
+```
+
+```{r}
+library(dplyr)
+all_last_rows <- subset(Complex_data_frame)
+
+
+
+All_Avg_Angle <- all_last_rows %>%
+  group_by(X, Y) %>%
+  summarise(avg_angle = mean(Complex))
+
+
+
+
+tail(All_Avg_Angle)
+```
+
+```{r}
+All_Avg_Angle$avg_angle <- sapply(All_Avg_Angle$avg_angle, Arg)
+
+# Print the first few rows to check the transformation
+All_Avg_Angle$avg_angle <- All_Avg_Angle$avg_angle/pi
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+length(All_Avg_Angle$avg_angle)
+
+for (i in 1:length(All_Avg_Angle$avg_angle)) {
+  Angle <- All_Avg_Angle$avg_angle[i]
+  if (Angle<=0){
+    All_Avg_Angle$avg_angle[i]<- 1+Angle
+  }
+}
+head(All_Avg_Angle)
+tail(All_Avg_Angle)
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+library(ggplot2)
+
+All_Avg_Angle$color <- with(All_Avg_Angle, rgb((sin(2*pi*avg_angle)+1)/2, (cos(2*pi*avg_angle)+1)/2, (-sin(2*pi*avg_angle)+1)/2))
+All_Avg_Angle
+range(All_Avg_Angle$avg_angle)
+```
+
+```{r}
+library(dplyr)
+all_last_rows <- subset(Complex_data_frame)
+
+
+
+All_Avg_Angle <- all_last_rows %>%
+  group_by(X, Y) %>%
+  summarise(avg_angle = mean(Complex))
+
+
+
+
+tail(All_Avg_Angle)
+```
+
+```{r}
+library(dplyr)
+
+
+
+All_Avg_Angle <- All_Avg_Angle %>%
+  group_by(X, Y) %>%
+  summarise(modulus = Mod(avg_angle))
+
+
+
+
+tail(All_Avg_Angle)
+```
+
+```{r}
+modulus_heatmap_plot <- ggplot(All_Avg_Angle, aes(x = X, y = Y, fill = modulus)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black") +
+  theme_minimal() +
+  labs(fill = "Modulus", x = "X coordinate [µm]", y = "Y coordinate [µm]", title = "Heatmap of modulus at each (x, y) point in the chamber")   
+
+# Print the plot
+print(modulus_heatmap_plot) 
+```
+
+```{r}
+head(All_Avg_Angle)
+
+write.csv(All_Avg_Angle, file = "All_Avg_Angle.csv")
+```
